@@ -1,0 +1,101 @@
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Scanner;
+
+public class PuntoDeVenta {
+
+    static class Item {
+        int cantidad;
+        String descripcion;
+        BigDecimal precioUnitario;
+        BigDecimal subtotal;
+
+        Item(int cantidad, String descripcion, BigDecimal precioUnitario) {
+            this.cantidad = cantidad;
+            this.descripcion = descripcion;
+            this.precioUnitario = precioUnitario.setScale(2, RoundingMode.HALF_UP);
+            this.subtotal = this.precioUnitario.multiply(new BigDecimal(cantidad)).setScale(2, RoundingMode.HALF_UP);
+        }
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in, "UTF-8");
+        List<Item> items = new ArrayList<>();
+        BigDecimal acumulador = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        NumberFormat currency = NumberFormat.getCurrencyInstance(new Locale("es", "MX"));
+
+        System.out.println("=== Punto de Venta (Con acumulador) ===");
+
+        while (true) {
+            System.out.print("¿Deseas agregar un artículo? (s/n): ");
+            String resp = sc.nextLine().trim().toLowerCase();
+            if (!resp.equals("s") && !resp.equals("si")) break;
+
+            int cantidad = 0;
+            while (true) {
+                System.out.print("Cantidad: ");
+                String line = sc.nextLine().trim();
+                try {
+                    cantidad = Integer.parseInt(line);
+                    if (cantidad <= 0) throw new NumberFormatException();
+                    break;
+                } catch (NumberFormatException e) {
+                    System.out.println("Cantidad inválida. Ingresa un entero mayor a 0.");
+                }
+            }
+
+            System.out.print("Descripción: ");
+            String descripcion = sc.nextLine().trim();
+            if (descripcion.isEmpty()) descripcion = "(sin descripción)";
+
+            BigDecimal precioUnitario = BigDecimal.ZERO;
+            while (true) {
+                System.out.print("Precio unitario (ej. 25.50): ");
+                String p = sc.nextLine().trim();
+                try {
+                    // Reemplaza comas por puntos si el usuario lo usa
+                    p = p.replace(',', '.');
+                    precioUnitario = new BigDecimal(p).setScale(2, RoundingMode.HALF_UP);
+                    if (precioUnitario.compareTo(BigDecimal.ZERO) < 0) throw new NumberFormatException();
+                    break;
+                } catch (NumberFormatException e) {
+                    System.out.println("Precio inválido. Intenta de nuevo.");
+                }
+            }
+
+            Item it = new Item(cantidad, descripcion, precioUnitario);
+            items.add(it);
+            acumulador = acumulador.add(it.subtotal).setScale(2, RoundingMode.HALF_UP);
+
+            System.out.println("Artículo agregado. Subtotal: " + currency.format(it.subtotal));
+            System.out.println();
+        }
+
+        // Imprimir comprobante
+        System.out.println();
+        System.out.println("------------ FACTURA ------------");
+        System.out.printf("%-8s %-40s %12s %12s\n", "Cantidad", "Descripción", "P. Unitario", "Subtotal");
+        System.out.println("-------------------------------------------------------------------------------");
+        for (Item it : items) {
+            System.out.printf("%-8d %-40s %12s %12s\n",
+                    it.cantidad,
+                    truncate(it.descripcion, 40),
+                    currency.format(it.precioUnitario),
+                    currency.format(it.subtotal));
+        }
+        System.out.println("-------------------------------------------------------------------------------");
+        System.out.printf("%62s %12s\n", "TOTAL:", currency.format(acumulador));
+        System.out.println("----------------------------------");
+
+        sc.close();
+    }
+
+    private static String truncate(String s, int max) {
+        if (s.length() <= max) return s;
+        return s.substring(0, max - 3) + "...";
+    }
+}
